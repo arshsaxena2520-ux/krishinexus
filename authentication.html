@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Krishi Nexus - Authentication & Payment Setup</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: linear-gradient(135deg, #e8f5e9, #c8e6c9); display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+        .auth-container { background: white; padding: 35px; border-radius: 16px; box-shadow: 0 8px 30px rgba(0,0,0,0.1); width: 100%; max-width: 440px; text-align: center; }
+        .logo { font-size: 26px; font-weight: bold; color: #1b5e20; margin-bottom: 4px; }
+        .tagline { font-size: 13px; color: #555; margin-bottom: 20px; }
+        
+        .role-switch { display: flex; background: #f1f8e9; border-radius: 10px; padding: 4px; margin-bottom: 20px; gap: 4px; }
+        .role-btn { flex: 1; padding: 10px 4px; border: none; background: transparent; font-weight: 600; font-size: 13px; color: #388e3c; cursor: pointer; border-radius: 8px; transition: 0.3s; }
+        .role-btn.active { background: #2e7d32; color: white; box-shadow: 0 2px 8px rgba(46,125,50,0.3); }
+
+        .input-group { margin-bottom: 12px; text-align: left; }
+        input, select { width: 100%; padding: 11px 14px; border: 1px solid #ccd1d1; border-radius: 8px; font-size: 14px; outline: none; transition: 0.2s; background: #fafafa; }
+        input:focus, select:focus { border-color: #2e7d32; background: #fff; box-shadow: 0 0 0 3px rgba(46,125,50,0.1); }
+        
+        .auth-btn { width: 100%; padding: 12px; background: #2e7d32; color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; margin-top: 10px; transition: 0.2s; }
+        .auth-btn:hover { background: #1b5e20; }
+
+        .toggle-link { margin-top: 16px; font-size: 13px; color: #555; }
+        .toggle-link span { color: #2e7d32; font-weight: bold; cursor: pointer; text-decoration: underline; }
+        .hidden { display: none; }
+        .otp-sent-text { font-size: 12px; color: #2e7d32; margin-bottom: 10px; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+<div class="auth-container">
+    <div class="logo">🌾 Krishi Nexus</div>
+    <div class="tagline" id="formSubtitle">Empowering Farmers and Labourers</div>
+
+    <!-- Role Selection Tabs -->
+    <div class="role-switch">
+        <button type="button" class="role-btn active" id="btnFarmer" onclick="setRole('farmer')">👨‍🌾 Farmer</button>
+        <button type="button" class="role-btn" id="btnLabour" onclick="setRole('labour')">👷‍♂️ Labour</button>
+    </div>
+
+    <form id="authForm" onsubmit="handleSubmit(event)">
+        <div class="input-group signup-field">
+            <input type="text" id="fullName" placeholder="Full Name">
+        </div>
+
+        <div class="input-group">
+            <input type="tel" id="phone" placeholder="Mobile Number (10 digits)" pattern="[0-9]{10}" required>
+        </div>
+
+        <div class="input-group signup-field">
+            <input type="password" id="aadhaar" placeholder="12-Digit Identification Number" maxlength="12">
+        </div>
+
+        <div class="input-group signup-field">
+            <input type="text" id="village" placeholder="Village / Town Name">
+        </div>
+
+        <div class="input-group signup-field">
+            <select id="district">
+                <option value="">Select District</option>
+                <option value="Jhansi">Jhansi</option>
+                <option value="Lalitpur">Lalitpur</option>
+                <option value="Mahoba">Mahoba</option>
+                <option value="Jalaun">Jalaun</option>
+                <option value="Greater Noida">Greater Noida</option>
+                <option value="Other">Other District</option>
+            </select>
+        </div>
+
+        <div class="input-group signup-field">
+            <input type="text" id="state" placeholder="State (e.g., Uttar Pradesh)" value="Uttar Pradesh">
+        </div>
+
+        <!-- Role-Specific Dynamic Fields -->
+        <div class="input-group signup-field" id="farmerField">
+            <input type="text" id="crop" placeholder="Primary Crop (e.g., Paddy, Wheat)">
+        </div>
+        
+        <div class="input-group signup-field hidden" id="labourField">
+            <input type="number" id="dailyWageExpectation" placeholder="Expected Daily Wage (₹)" min="0">
+        </div>
+
+        <!-- Post-Match Payment & Meeting Requirement Section -->
+        <div class="input-group signup-field" id="paymentSection">
+            <label style="font-size: 12px; font-weight: 600; color: #2e7d32; display: block; margin-bottom: 6px;">
+                🤝 Post-Match Payment & Fulfillment Terms
+            </label>
+            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                <input type="number" id="agreedWage" placeholder="Final Agreed Rate (₹)" min="0" style="flex: 1;">
+                <select id="paymentMode" style="flex: 1;">
+                    <option value="cash">Cash on Task Completion</option>
+                    <option value="upi">UPI / Online Transfer</option>
+                    <option value="advance">Advance + Balance Settlement</option>
+                </select>
+            </div>
+            <input type="number" id="advanceAmount" placeholder="Advance Payout Amount (₹, optional)" min="0">
+        </div>
+
+        <!-- OTP Input Field -->
+        <div class="input-group" id="otpGroup">
+            <div id="otpPrompt" class="otp-sent-text hidden">🔒 OTP Sent to your phone (Demo code: 123456)</div>
+            <input type="text" id="otpCode" placeholder="Enter 6-Digit OTP" maxlength="6">
+        </div>
+
+        <button type="submit" class="auth-btn" id="submitBtn">Get Verification OTP</button>
+    </form>
+
+    <div class="toggle-link">
+        <span id="toggleText" onclick="toggleMode()">Already registered? Log in with OTP</span>
+    </div>
+</div>
+
+<script>
+    let currentRole = 'farmer';
+    let isLoginMode = false;
+    let otpRequested = false;
+
+    function setRole(role) {
+        currentRole = role;
+        document.getElementById('btnFarmer').classList.toggle('active', role === 'farmer');
+        document.getElementById('btnLabour').classList.toggle('active', role === 'labour');
+
+        document.getElementById('farmerField').style.display = (role === 'farmer' && !isLoginMode) ? 'block' : 'none';
+        document.getElementById('labourField').style.display = (role === 'labour' && !isLoginMode) ? 'block' : 'none';
+    }
+
+    function toggleMode() {
+        isLoginMode = !isLoginMode;
+        otpRequested = false;
+        const signupFields = document.querySelectorAll('.signup-field');
+        
+        signupFields.forEach(el => el.style.display = isLoginMode ? 'none' : 'block');
+        document.getElementById('otpPrompt').classList.add('hidden');
+        document.getElementById('otpCode').value = '';
+        
+        setRole(currentRole);
+
+        document.getElementById('submitBtn').innerText = isLoginMode ? 'Log In' : 'Get Verification OTP';
+        document.getElementById('toggleText').innerText = isLoginMode ? "Don't have an account? Sign up" : 'Already registered? Log in with OTP';
+        document.getElementById('formSubtitle').innerText = isLoginMode ? `Login to ${currentRole.toUpperCase()} Portal` : 'Empowering Farmers and Labourers';
+    }
+
+    async function handleSubmit(event) {
+        event.preventDefault();
+        const phone = document.getElementById('phone').value;
+        const otpInput = document.getElementById('otpCode').value;
+
+        if (!otpRequested) {
+            otpRequested = true;
+            document.getElementById('otpPrompt').classList.remove('hidden');
+            document.getElementById('submitBtn').innerText = isLoginMode ? 'Verify & Log In' : 'Complete Registration';
+            alert('Demo OTP "123456" generated and sent to phone ' + phone);
+            return;
+        }
+
+        if (otpInput !== '123456') {
+            alert('Invalid OTP code! Please use demo code: 123456');
+            return;
+        }
+
+        const payload = {
+            phone,
+            role: currentRole,
+            fullName: !isLoginMode ? document.php?.getElementById('fullName').value || document.getElementById('fullName').value : undefined,
+            village: !isLoginMode ? document.getElementById('village').value : undefined,
+            district: !isLoginMode ? document.getElementById('district').value : undefined,
+            state: !isLoginMode ? document.getElementById('state').value : undefined,
+            crop: (currentRole === 'farmer' && !isLoginMode) ? document.getElementById('crop').value : undefined,
+            dailyWageExpectation: (currentRole === 'labour' && !isLoginMode) ? document.getElementById('dailyWageExpectation').value : undefined,
+            fulfillmentTerms: !isLoginMode ? {
+                agreedRate: document.getElementById('agreedWage').value,
+                mode: document.getElementById('paymentMode').value,
+                advance: document.getElementById('advanceAmount').value
+            } : undefined
+        };
+
+        localStorage.setItem('userRole', currentRole);
+        localStorage.setItem('userPhone', phone);
+        alert(isLoginMode ? `Login successful as ${currentRole}!` : `Registration and fulfillment terms successfully configured!`);
+
+        if (currentRole === 'farmer') {
+            window.location.href = '/farmer-dashboard.html';
+        } else {
+            window.location.href = '/labour-dashboard.html';
+        }
+    }
+</script>
+
+</body>
+</html>
