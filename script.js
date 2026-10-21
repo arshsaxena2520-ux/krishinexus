@@ -1377,3 +1377,67 @@
     // Launch Application
     applyTranslations();
     go("dashboard");
+
+// ==========================================
+// OTP AUTHENTICATION FUNCTIONS
+// ==========================================
+
+// Replace with your live Render backend URL once deployed
+const BACKEND_URL = 'https://krishi-nexus-api.onrender.com';
+
+// 1. Function to send OTP SMS
+async function sendOTP() {
+  const userPhone = document.getElementById('phoneInput').value;
+
+  if (!userPhone || userPhone.length < 10) {
+    alert("Please enter a valid 10-digit mobile number.");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/auth/send-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: userPhone })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      alert("OTP sent to your phone via SMS!");
+    } else {
+      alert("Error: " + data.message);
+    }
+  } catch (err) {
+    alert("Server error. Make sure your Render backend is running.");
+  }
+}
+
+// 2. Function to verify OTP and complete login
+async function verifyOTP() {
+  const userPhone = document.getElementById('phoneInput').value;
+  const userOtp = document.getElementById('otpInput').value;
+
+  if (!userOtp) {
+    alert("Please enter the 6-digit OTP.");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/auth/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: userPhone, otp: userOtp })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      localStorage.setItem('token', data.token); // Save JWT token
+      alert("Successfully Logged In!");
+      window.location.href = "/dashboard.html"; // Redirect user
+    } else {
+      alert("Invalid OTP! " + data.message);
+    }
+  } catch (err) {
+    alert("Verification error.");
+  }
+}
