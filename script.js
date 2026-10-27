@@ -189,7 +189,18 @@
 
     let LANGUAGE = localStorage.getItem("kn_language") || "English";
     let ROLE = localStorage.getItem("kn_active_role") || "farmer";
-    let generatedOtp = "";
+    let otpRequestedForPhone = "";
+    function normalizeIndianPhone(value) {
+      const digits = String(value || "").replace(/\D/g, "");
+      const national = digits.startsWith("91") && digits.length === 12 ? digits.slice(2) : digits;
+      return /^[6-9]\d{9}$/.test(national) ? `+91${national}` : "";
+    }
+    async function authRequest(path, payload) {
+      const response = await fetch(`/api/otp/${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success) throw new Error(result.message || "Authentication service unavailable.");
+      return result;
+    }
 
     function t(key) {
       return (I18N[LANGUAGE] && I18N[LANGUAGE][key]) || I18N["English"][key] || key;
@@ -967,11 +978,14 @@
     /* ==========================================================================
        12. RANDOM 6-DIGIT OTP VERIFICATION & PROFILES
        ========================================================================== */
-    function sendRandomOtp() {
-      generatedOtp = String(Math.floor(100000 + Math.random() * 900000));
-      toast(`📲 Demo OTP is: ${generatedOtp} (Valid for registration)`);
-      const field = document.getElementById("regOtpInput");
-      if (field) field.focus();
+    async function sendRandomOtp() {
+      const button = document.getElementById("sendOtpButton");
+      const phone = normalizeIndianPhone(document.getElementById("rMobile")?.value);
+      if (!phone) return toast("Enter a valid 10-digit Indian mobile number first.");
+      if (button) button.disabled = true;
+      try { await authRequest("send", { phone }); otpRequestedForPhone = phone; toast("OTP sent by SMS. It expires in 5 minutes."); document.getElementById("regOtpInput")?.focus(); }
+      catch (error) { toast(error.message); }
+      finally { if (button) button.disabled = false; }
     }
 
     function registerModal(type = ROLE, presetState = "") {
@@ -1029,9 +1043,9 @@
             <label><b>6-Digit Phone OTP Verification *</b></label>
             <div style="display:flex;gap:8px;">
               <input id="regOtpInput" placeholder="${t("otpPlaceholder")}" style="max-width:200px;">
-              <button type="button" class="btn secondary" onclick="sendRandomOtp()">📩 ${t("sendOtp")}</button>
+              <button type="button" id="sendOtpButton" class="btn secondary" onclick="sendRandomOtp()">📩 ${t("sendOtp")}</button>
             </div>
-            <small class="muted">Click "Send OTP" to receive a 6-digit demo code in your browser toast.</small>
+            <small class="muted">A one-time verification code will be sent to this mobile number.</small>
           </div>
         </div>
 
@@ -1042,7 +1056,7 @@
       `);
     }
 
-    function submitProfileRegistration(type) {
+    async function submitProfileRegistration(type) {
       const name = document.getElementById("rName")?.value.trim();
       const mobile = document.getElementById("rMobile")?.value.trim();
       const village = document.getElementById("rVillage")?.value.trim();
@@ -1050,21 +1064,18 @@
       const state = document.getElementById("rState")?.value;
       const crop = document.getElementById("rCrop")?.value;
       const enteredOtp = document.getElementById("regOtpInput")?.value.trim();
+      const phone = normalizeIndianPhone(mobile);
 
       if (!name || !mobile || !village || !district) {
         toast("Please fill in Name, Mobile, Village, and District!");
         return;
       }
 
-      if (!generatedOtp) {
-        toast("Please click 'Send OTP' first to generate your verification code.");
-        return;
-      }
-
-      if (enteredOtp !== generatedOtp) {
-        toast("❌ Incorrect 6-digit OTP! Please check the code shown in the toast.");
-        return;
-      }
+      if (!phone) { toast("Enter a valid 10-digit Indian mobile number."); return; }
+      if (!/^\d{6}$/.test(enteredOtp || "")) { toast("Enter the 6-digit code sent to your phone."); return; }
+      if (otpRequestedForPhone !== phone) { toast("Send a new OTP to the mobile number entered above."); return; }
+      try { await authRequest("verify", { phone, code: enteredOtp }); }
+      catch (error) { toast(error.message); return; }
 
       const selectedStateObj = ALL_STATES.find(s => s.name === state) || ALL_STATES[0];
 

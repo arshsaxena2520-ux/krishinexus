@@ -1,0 +1,1 @@
+{"name":"krishi-nexus","version":"1.0.0","private":true,"engines":{"node":">=18"},"scripts":{"dev":"vercel dev"},"dependencies":{"twilio":"^5.5.0"},"devDependencies":{"vercel":"^39.2.0"}}
